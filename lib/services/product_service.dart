@@ -11,8 +11,38 @@ class ProductService {
 
   Stream<List<Product>> productsStream() {
     return _firestore.collection('products').snapshots().map((snapshot) {
-      return snapshot.docs.map(_productFromDocument).toList();
+      final products = snapshot.docs.map(_productFromDocument).toList();
+      return _removeDuplicateProducts(products);
     });
+  }
+
+  List<Product> _removeDuplicateProducts(List<Product> products) {
+    final seenProductKeys = <String>{};
+    final uniqueProducts = <Product>[];
+
+    for (final product in products) {
+      final productKey = _productIdentityKey(product);
+
+      if (seenProductKeys.contains(productKey)) {
+        debugPrint('Duplicate product hidden: ${product.name}');
+        continue;
+      }
+
+      seenProductKeys.add(productKey);
+      uniqueProducts.add(product);
+    }
+
+    return uniqueProducts;
+  }
+
+  String _productIdentityKey(Product product) {
+    final normalizedImagePath = _normalizeImagePath(product.imagePath);
+
+    if (normalizedImagePath.isNotEmpty) {
+      return 'image:$normalizedImagePath';
+    }
+
+    return 'name:${product.name.trim().toLowerCase()}';
   }
 
   Product _productFromDocument(
@@ -159,14 +189,14 @@ class ProductService {
     final category = _readString(value).toLowerCase();
 
     const categories = {
-      'jersey': 'Jersey',
-      'jerseys': 'Jersey',
-      'socks': 'Socks',
-      'trainers': 'Trainers',
-      'accessories': 'Accessories',
+      'jersey': 'jersey',
+      'jerseys': 'jersey',
+      'socks': 'socks',
+      'trainers': 'trainers',
+      'accessories': 'accessories',
     };
 
-    return categories[category] ?? _readString(value);
+    return categories[category] ?? category;
   }
 
   String _normalizeImagePath(Object? value) {

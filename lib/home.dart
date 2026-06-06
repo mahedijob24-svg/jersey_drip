@@ -75,10 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _categoryMatches(Product product, String categoryLabel) {
     const categoryByLabel = {
-      'Jersey': 'Jersey',
-      'Socks': 'Socks',
-      'Trainers': 'Trainers',
-      'Accessories': 'Accessories',
+      'Jersey': 'jersey',
+      'Socks': 'socks',
+      'Trainers': 'trainers',
+      'Accessories': 'accessories',
     };
 
     return product.category == categoryByLabel[categoryLabel];
