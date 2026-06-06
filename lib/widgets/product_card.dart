@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_spacing.dart';
@@ -21,6 +22,60 @@ class ProductCard extends StatelessWidget {
   final String? originalPrice;
   final bool wishlisted;
   final VoidCallback onWishlistToggle;
+
+  static final Map<String, Future<String>> _assetPathCache = {};
+
+  static Future<String> _resolveAssetPath(String imagePath) {
+    final normalizedPath = _normalizeAssetPath(imagePath);
+
+    return _assetPathCache.putIfAbsent(normalizedPath, () async {
+      if (normalizedPath.isEmpty) {
+        return normalizedPath;
+      }
+
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final assets = manifest.listAssets();
+
+      if (assets.contains(normalizedPath)) {
+        return normalizedPath;
+      }
+
+      final lowerPath = normalizedPath.toLowerCase();
+      for (final asset in assets) {
+        if (_normalizeAssetPath(asset).toLowerCase() == lowerPath) {
+          return asset;
+        }
+      }
+
+      final fileName = lowerPath.split('/').last;
+      final fileNameMatches = assets
+          .where((asset) => asset.toLowerCase().endsWith('/$fileName'))
+          .toList();
+
+      if (fileNameMatches.length == 1) {
+        return fileNameMatches.single;
+      }
+
+      debugPrint('IMAGE ASSET NOT FOUND IN MANIFEST');
+      debugPrint('Firestore path: $imagePath');
+      debugPrint('Normalized path: $normalizedPath');
+      return normalizedPath;
+    });
+  }
+
+  static String _normalizeAssetPath(String imagePath) {
+    var path = imagePath.trim().replaceAll(r'\', '/');
+
+    while (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+
+    if (path.startsWith('assets/')) {
+      path = path.substring('assets/'.length);
+    }
+
+    return path;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +113,35 @@ class ProductCard extends StatelessWidget {
                         imagePath,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) {
-                          debugPrint('IMAGE LOAD FAILED');
-                          debugPrint('Path: $imagePath');
-                          debugPrint('Error: $error');
-                          return const Center(
-                            child: Icon(Icons.broken_image, size: 48),
+                          return FutureBuilder<String>(
+                            future: _resolveAssetPath(imagePath),
+                            builder: (context, snapshot) {
+                              final resolvedPath = snapshot.data;
+
+                              if (resolvedPath == null ||
+                                  resolvedPath == imagePath) {
+                                debugPrint('IMAGE LOAD FAILED');
+                                debugPrint('Path: $imagePath');
+                                debugPrint('Error: $error');
+                                return const Center(
+                                  child: Icon(Icons.broken_image, size: 48),
+                                );
+                              }
+
+                              return Image.asset(
+                                resolvedPath,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  debugPrint('IMAGE LOAD FAILED');
+                                  debugPrint('Path: $resolvedPath');
+                                  debugPrint('Original path: $imagePath');
+                                  debugPrint('Error: $error');
+                                  return const Center(
+                                    child: Icon(Icons.broken_image, size: 48),
+                                  );
+                                },
+                              );
+                            },
                           );
                         },
                       ),

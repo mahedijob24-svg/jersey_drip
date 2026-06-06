@@ -8,8 +8,8 @@ import 'widgets/bottom_nav_bar.dart';
 import 'widgets/category_card.dart';
 import 'widgets/featured_banner.dart';
 import 'widgets/product_card.dart';
-import 'package:jerseyapp/data/dummy_products.dart';
 import 'package:jerseyapp/models/product.dart';
+import 'package:jerseyapp/services/product_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +19,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final ProductService _productService = ProductService();
+  final Set<String> _wishlistedProductIds = {};
+  late final Stream<List<Product>> _productsStream = _productService
+      .productsStream();
+
   int _activeCategoryIndex = 0;
   int _activeTabIndex = 0;
   String _searchQuery = '';
@@ -29,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
       icon: CategoryIcon(type: CategoryIconType.all),
     ),
     _CategoryOption(
-      label: 'Jerseys',
+      label: 'Jersey',
       icon: CategoryIcon(type: CategoryIconType.jerseys),
     ),
     _CategoryOption(
@@ -46,11 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   ];
 
-  List<Product> get products => dummyProducts;
-
-  final Set<String> _wishlistedProductIds = {};
-
-  List<Product> get _filteredProducts {
+  List<Product> _filteredProducts(List<Product> products) {
     final filteredByCategory = _activeCategoryIndex == 0
         ? products
         : products
@@ -74,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _categoryMatches(Product product, String categoryLabel) {
     const categoryByLabel = {
-      'Jerseys': 'Jersey',
+      'Jersey': 'Jersey',
       'Socks': 'Socks',
       'Trainers': 'Trainers',
       'Accessories': 'Accessories',
@@ -234,38 +235,60 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: AppSpacing.xl),
               _buildSectionHeader('Top Products'),
               const SizedBox(height: AppSpacing.md),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final availableWidth = constraints.maxWidth;
-                  final maxItemWidth = availableWidth < 760
-                      ? availableWidth / 2.1
-                      : availableWidth < 1000
-                      ? 240.0
-                      : 270.0;
-                  final childAspectRatio = availableWidth >= 760 ? 0.7 : 0.62;
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    itemCount: _filteredProducts.length,
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: maxItemWidth,
-                      mainAxisSpacing: AppSpacing.lg,
-                      crossAxisSpacing: AppSpacing.lg,
-                      childAspectRatio: childAspectRatio,
-                    ),
-                    itemBuilder: (context, index) {
-                      final item = _filteredProducts[index];
-                      return ProductCard(
-                        key: ValueKey(item.id),
-                        imagePath: item.imagePath,
-                        name: item.name,
-                        price: _formatPrice(item.discountedPrice),
-                        originalPrice: item.discountedPrice < item.price
-                            ? _formatPrice(item.price)
-                            : null,
-                        wishlisted: _wishlistedProductIds.contains(item.id),
-                        onWishlistToggle: () => _toggleWishlist(item.id),
+              StreamBuilder<List<Product>>(
+                stream: _productsStream,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return Text(
+                      'Unable to load products',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final filteredProducts = _filteredProducts(snapshot.data!);
+
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final availableWidth = constraints.maxWidth;
+                      final maxItemWidth = availableWidth < 760
+                          ? availableWidth / 2.1
+                          : availableWidth < 1000
+                          ? 240.0
+                          : 270.0;
+                      final childAspectRatio = availableWidth >= 760
+                          ? 0.7
+                          : 0.62;
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.zero,
+                        itemCount: filteredProducts.length,
+                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: maxItemWidth,
+                          mainAxisSpacing: AppSpacing.lg,
+                          crossAxisSpacing: AppSpacing.lg,
+                          childAspectRatio: childAspectRatio,
+                        ),
+                        itemBuilder: (context, index) {
+                          final item = filteredProducts[index];
+                          return ProductCard(
+                            key: ValueKey(item.id),
+                            imagePath: item.imagePath,
+                            name: item.name,
+                            price: _formatPrice(item.discountedPrice),
+                            originalPrice: item.discountedPrice < item.price
+                                ? _formatPrice(item.price)
+                                : null,
+                            wishlisted: _wishlistedProductIds.contains(item.id),
+                            onWishlistToggle: () => _toggleWishlist(item.id),
+                          );
+                        },
                       );
                     },
                   );
