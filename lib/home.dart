@@ -284,7 +284,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: AppSpacing.xl),
-              const FeaturedBanner(),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: const FeaturedBanner(),
+              ),
               const SizedBox(height: AppSpacing.xl),
               _buildSectionHeader(
                 'Top Products',

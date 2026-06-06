@@ -35,11 +35,12 @@ class FeaturedBanner extends StatelessWidget {
             direction: isCompact ? Axis.vertical : Axis.horizontal,
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Flexible(
                 fit: FlexFit.loose,
-                flex: 3,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -79,7 +80,6 @@ class FeaturedBanner extends StatelessWidget {
               ),
               Flexible(
                 fit: FlexFit.loose,
-                flex: 2,
                 child: Align(
                   alignment: isCompact
                       ? Alignment.center
