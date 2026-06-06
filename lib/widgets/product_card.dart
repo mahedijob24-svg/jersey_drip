@@ -14,6 +14,7 @@ class ProductCard extends StatelessWidget {
     this.originalPrice,
     required this.wishlisted,
     required this.onWishlistToggle,
+    this.onAddToCart,
   });
 
   final String imagePath;
@@ -22,6 +23,7 @@ class ProductCard extends StatelessWidget {
   final String? originalPrice;
   final bool wishlisted;
   final VoidCallback onWishlistToggle;
+  final VoidCallback? onAddToCart;
 
   static final Map<String, Future<String>> _assetPathCache = {};
 
@@ -243,7 +245,8 @@ class ProductCard extends StatelessWidget {
                         ],
                       ),
                       child: IconButton(
-                        onPressed: () {},
+                        tooltip: 'Add to cart',
+                        onPressed: onAddToCart,
                         icon: const Icon(Icons.add, color: Colors.white),
                         iconSize: 20,
                         padding: const EdgeInsets.all(8),

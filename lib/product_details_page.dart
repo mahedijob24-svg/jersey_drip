@@ -4,6 +4,7 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_spacing.dart';
 import 'core/theme/app_text_styles.dart';
 import 'models/product.dart';
+import 'services/cart_service.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   const ProductDetailsPage({super.key, required this.product});
@@ -15,6 +16,8 @@ class ProductDetailsPage extends StatefulWidget {
 }
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
+  final CartService _cartService = CartService();
+
   late final List<String> _sizes = widget.product.sizes.isEmpty
       ? const ['S', 'M', 'L', 'XL']
       : widget.product.sizes;
@@ -52,6 +55,26 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     setState(() {
       _selectedSize = size;
     });
+  }
+
+  Future<void> _addToCart() async {
+    try {
+      await _cartService.addProduct(product);
+      if (!mounted) return;
+      _showMessage('${product.name} added to cart');
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('Unable to add product to cart');
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.backgroundDark,
+      ),
+    );
   }
 
   @override
@@ -94,7 +117,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: _addToCart,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.backgroundDark,
                   side: const BorderSide(color: AppColors.border),
