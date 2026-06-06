@@ -8,6 +8,8 @@ import 'widgets/bottom_nav_bar.dart';
 import 'widgets/category_card.dart';
 import 'widgets/featured_banner.dart';
 import 'widgets/product_card.dart';
+import 'package:jerseyapp/data/dummy_products.dart';
+import 'package:jerseyapp/models/product.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,87 +46,19 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
   ];
 
-  final List<ProductItem> _products = [
-    ProductItem(
-      name: 'Barcelona Home Jersey',
-      category: 'Jerseys',
-      price: '\$120',
-      imageUrl:
-          'https://images.pexels.com/photos/4171652/pexels-photo-4171652.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'Real Madrid Away Jersey',
-      category: 'Jerseys',
-      price: '\$115',
-      imageUrl:
-          'https://images.pexels.com/photos/208744/pexels-photo-208744.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'Manchester City Home Jersey',
-      category: 'Jerseys',
-      price: '\$125',
-      imageUrl:
-          'https://images.pexels.com/photos/1183266/pexels-photo-1183266.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'Liverpool Home Jersey',
-      category: 'Jerseys',
-      price: '\$130',
-      imageUrl:
-          'https://images.pexels.com/photos/1595381/pexels-photo-1595381.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'Arsenal Third Kit',
-      category: 'Jerseys',
-      price: '\$110',
-      imageUrl:
-          'https://images.pexels.com/photos/77720/pexels-photo-77720.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'PSG Home Jersey',
-      category: 'Jerseys',
-      price: '\$140',
-      imageUrl:
-          'https://images.pexels.com/photos/3985325/pexels-photo-3985325.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'Velocity Performance Socks',
-      category: 'Socks',
-      price: '\$18',
-      imageUrl:
-          'https://images.pexels.com/photos/1250650/pexels-photo-1250650.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'Impact Football Boots',
-      category: 'Trainers',
-      price: '\$220',
-      imageUrl:
-          'https://images.pexels.com/photos/267111/pexels-photo-267111.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-    ProductItem(
-      name: 'Team Essentials Backpack',
-      category: 'Accessories',
-      price: '\$62',
-      imageUrl:
-          'https://images.pexels.com/photos/1201820/pexels-photo-1201820.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
-    ),
-  ];
+  List<Product> get products => dummyProducts;
 
-  late final List<bool> _wishlisted;
+  final Set<String> _wishlistedProductIds = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _wishlisted = List.filled(_products.length, false);
-  }
-
-  List<ProductItem> get _filteredProducts {
+  List<Product> get _filteredProducts {
     final filteredByCategory = _activeCategoryIndex == 0
-        ? _products
-        : _products
+        ? products
+        : products
               .where(
-                (product) =>
-                    product.category == _categories[_activeCategoryIndex].label,
+                (product) => _categoryMatches(
+                  product,
+                  _categories[_activeCategoryIndex].label,
+                ),
               )
               .toList();
     if (_searchQuery.isEmpty) {
@@ -138,10 +72,29 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
   }
 
-  void _toggleWishlist(int index) {
+  bool _categoryMatches(Product product, String categoryLabel) {
+    const categoryByLabel = {
+      'Jerseys': 'Jersey',
+      'Socks': 'Socks',
+      'Trainers': 'Trainers',
+      'Accessories': 'Accessories',
+    };
+
+    return product.category == categoryByLabel[categoryLabel];
+  }
+
+  void _toggleWishlist(String productId) {
     setState(() {
-      _wishlisted[index] = !_wishlisted[index];
+      if (_wishlistedProductIds.contains(productId)) {
+        _wishlistedProductIds.remove(productId);
+      } else {
+        _wishlistedProductIds.add(productId);
+      }
     });
+  }
+
+  String _formatPrice(double amount) {
+    return '৳${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}';
   }
 
   void _setCategory(int index) {
@@ -156,11 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget _buildSectionHeader(
-    String title, {
-    required VoidCallback onRightTap,
-    required String rightLabel,
-  }) {
+  Widget _buildSectionHeader(String title) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -168,16 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
           title,
           style: AppTextStyles.headingMedium.copyWith(
             color: AppColors.backgroundDark,
-          ),
-        ),
-        GestureDetector(
-          onTap: onRightTap,
-          child: Text(
-            rightLabel,
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.accent,
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ),
       ],
@@ -195,7 +134,14 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.md +
+                kBottomNavigationBarHeight +
+                MediaQuery.of(context).padding.bottom,
+          ),
           child: Column(
             children: [
               const SizedBox(height: AppSpacing.xl),
@@ -243,11 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: AppSpacing.xl),
-              _buildSectionHeader(
-                'Categories',
-                onRightTap: () {},
-                rightLabel: 'See All',
-              ),
+              _buildSectionHeader('Categories'),
               const SizedBox(height: AppSpacing.md),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -290,11 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: const FeaturedBanner(),
               ),
               const SizedBox(height: AppSpacing.xl),
-              _buildSectionHeader(
-                'Top Products',
-                onRightTap: () {},
-                rightLabel: 'See All',
-              ),
+              _buildSectionHeader('Top Products'),
               const SizedBox(height: AppSpacing.md),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -308,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    padding: EdgeInsets.zero,
                     itemCount: _filteredProducts.length,
                     gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                       maxCrossAxisExtent: maxItemWidth,
@@ -318,19 +256,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     itemBuilder: (context, index) {
                       final item = _filteredProducts[index];
-                      final originalIndex = _products.indexOf(item);
                       return ProductCard(
-                        imageUrl: item.imageUrl,
+                        key: ValueKey(item.id),
+                        imagePath: item.imagePath,
                         name: item.name,
-                        price: item.price,
-                        wishlisted: _wishlisted[originalIndex],
-                        onWishlistToggle: () => _toggleWishlist(originalIndex),
+                        price: _formatPrice(item.discountedPrice),
+                        originalPrice: item.discountedPrice < item.price
+                            ? _formatPrice(item.price)
+                            : null,
+                        wishlisted: _wishlistedProductIds.contains(item.id),
+                        onWishlistToggle: () => _toggleWishlist(item.id),
                       );
                     },
                   );
                 },
               ),
-              const SizedBox(height: AppSpacing.xl + AppSpacing.sm),
             ],
           ),
         ),
@@ -344,18 +284,4 @@ class _CategoryOption {
 
   final String label;
   final Widget icon;
-}
-
-class ProductItem {
-  ProductItem({
-    required this.name,
-    required this.category,
-    required this.price,
-    required this.imageUrl,
-  });
-
-  final String name;
-  final String category;
-  final String price;
-  final String imageUrl;
 }

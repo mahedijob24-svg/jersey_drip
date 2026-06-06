@@ -18,7 +18,6 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       _NavItem(icon: Icons.home, label: 'Home'),
-      _NavItem(icon: Icons.category, label: 'Categories'),
       _NavItem(icon: Icons.shopping_cart, label: 'Cart'),
       _NavItem(icon: Icons.favorite_border, label: 'Wishlist'),
       _NavItem(icon: Icons.person, label: 'Profile'),

@@ -81,23 +81,6 @@ class FeaturedBanner extends StatelessWidget {
                             height: 1.45,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.backgroundDark,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.lg,
-                              vertical: AppSpacing.sm,
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text('Shop Now'),
-                        ),
                       ],
                     ),
                   ),
@@ -127,23 +110,6 @@ class FeaturedBanner extends StatelessWidget {
                     Text(
                       'Discover the latest club and national team kits',
                       style: AppTextStyles.body.copyWith(color: Colors.white70),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.backgroundDark,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                          vertical: AppSpacing.sm,
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text('Shop Now'),
                     ),
                   ],
                 ),

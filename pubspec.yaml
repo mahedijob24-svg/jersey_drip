@@ -92,3 +92,8 @@ flutter:
   # see https://flutter.dev/to/font-from-package
   assets:
     - images/
+    - product_images/
+    - product_images/accessories/
+    - product_images/boots/
+    - product_images/jerseys/
+    - product_images/socks/
