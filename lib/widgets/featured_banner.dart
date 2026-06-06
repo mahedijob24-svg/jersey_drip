@@ -31,8 +31,83 @@ class FeaturedBanner extends StatelessWidget {
         builder: (context, constraints) {
           final isCompact = constraints.maxWidth < 520;
 
+          if (isCompact) {
+            return SizedBox(
+              height: 210,
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  Positioned(
+                    right: -18,
+                    bottom: -32,
+                    width: constraints.maxWidth * 0.42,
+                    child: Opacity(
+                      opacity: 0.28,
+                      child: AspectRatio(
+                        aspectRatio: 4 / 5,
+                        child: Image.network(
+                          'https://images.pexels.com/photos/4171652/pexels-photo-4171652.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.shield,
+                                color: Colors.white24,
+                                size: 80,
+                              ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: constraints.maxWidth * 0.82,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'NEW SEASON JERSEYS',
+                          style: AppTextStyles.headingMedium.copyWith(
+                            color: Colors.white,
+                            fontSize: 24,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Discover the latest club and national team kits',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.body.copyWith(
+                            color: Colors.white70,
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        ElevatedButton(
+                          onPressed: () {},
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: AppColors.backgroundDark,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg,
+                              vertical: AppSpacing.sm,
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text('Shop Now'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return Flex(
-            direction: isCompact ? Axis.vertical : Axis.horizontal,
+            direction: Axis.horizontal,
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             mainAxisSize: MainAxisSize.min,
@@ -73,20 +148,12 @@ class FeaturedBanner extends StatelessWidget {
                   ],
                 ),
               ),
-              SizedBox(
-                height: isCompact ? AppSpacing.lg : 0,
-                width: isCompact ? 0 : AppSpacing.lg,
-              ),
+              SizedBox(width: AppSpacing.lg),
               SizedBox(
                 child: Align(
-                  alignment: isCompact
-                      ? Alignment.center
-                      : Alignment.centerRight,
+                  alignment: Alignment.centerRight,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: isCompact ? constraints.maxWidth * 0.82 : 220,
-                      maxHeight: isCompact ? 240 : 260,
-                    ),
+                    constraints: BoxConstraints(maxWidth: 220, maxHeight: 260),
                     child: AspectRatio(
                       aspectRatio: 4 / 5,
                       child: Image.network(

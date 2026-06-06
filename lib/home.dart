@@ -193,7 +193,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: _setActiveTab,
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           child: Column(
             children: [
@@ -295,41 +296,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 rightLabel: 'See All',
               ),
               const SizedBox(height: AppSpacing.md),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final availableWidth = constraints.maxWidth;
-                    final maxItemWidth = availableWidth < 760
-                        ? availableWidth / 2.1
-                        : availableWidth < 1000
-                        ? 240.0
-                        : 270.0;
-                    final childAspectRatio = availableWidth >= 760 ? 0.7 : 0.62;
-                    return GridView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                      itemCount: _filteredProducts.length,
-                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: maxItemWidth,
-                        mainAxisSpacing: AppSpacing.lg,
-                        crossAxisSpacing: AppSpacing.lg,
-                        childAspectRatio: childAspectRatio,
-                      ),
-                      itemBuilder: (context, index) {
-                        final item = _filteredProducts[index];
-                        final originalIndex = _products.indexOf(item);
-                        return ProductCard(
-                          imageUrl: item.imageUrl,
-                          name: item.name,
-                          price: item.price,
-                          wishlisted: _wishlisted[originalIndex],
-                          onWishlistToggle: () =>
-                              _toggleWishlist(originalIndex),
-                        );
-                      },
-                    );
-                  },
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  final maxItemWidth = availableWidth < 760
+                      ? availableWidth / 2.1
+                      : availableWidth < 1000
+                      ? 240.0
+                      : 270.0;
+                  final childAspectRatio = availableWidth >= 760 ? 0.7 : 0.62;
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                    itemCount: _filteredProducts.length,
+                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: maxItemWidth,
+                      mainAxisSpacing: AppSpacing.lg,
+                      crossAxisSpacing: AppSpacing.lg,
+                      childAspectRatio: childAspectRatio,
+                    ),
+                    itemBuilder: (context, index) {
+                      final item = _filteredProducts[index];
+                      final originalIndex = _products.indexOf(item);
+                      return ProductCard(
+                        imageUrl: item.imageUrl,
+                        name: item.name,
+                        price: item.price,
+                        wishlisted: _wishlisted[originalIndex],
+                        onWishlistToggle: () => _toggleWishlist(originalIndex),
+                      );
+                    },
+                  );
+                },
               ),
               const SizedBox(height: AppSpacing.xl + AppSpacing.sm),
             ],
