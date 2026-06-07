@@ -28,6 +28,19 @@ service cloud.firestore {
         && request.resource.data.verificationCompleted == false;
     }
 
+    function verifiesPendingSessionOnly() {
+      return ownsSession()
+        && request.auth.token.email_verified == true
+        && resource.data.status == 'pending_verification'
+        && resource.data.verificationCompleted == false
+        && ('emailSentAt' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'verificationCompleted', 'verifiedAt'])
+        && request.resource.data.status == 'verified'
+        && request.resource.data.verificationCompleted == true
+        && ('verifiedAt' in request.resource.data);
+    }
+
     function completesVerifiedSessionOnly() {
       return ownsSession()
         && resource.data.status == 'verified'
@@ -41,7 +54,9 @@ service cloud.firestore {
     match /payment_sessions/{sessionId} {
       allow create: if createsOwnPendingSession();
       allow read: if ownsSession();
-      allow update: if marksEmailSentOnly() || completesVerifiedSessionOnly();
+      allow update: if marksEmailSentOnly()
+        || verifiesPendingSessionOnly()
+        || completesVerifiedSessionOnly();
       allow delete: if false;
     }
 

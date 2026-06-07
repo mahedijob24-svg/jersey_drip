@@ -82,7 +82,9 @@ class PaymentSessionService {
   /// Retrieve a payment session by ID.
   Future<PaymentSession?> getPaymentSession(String sessionId) async {
     try {
-      final doc = await _collection.doc(sessionId).get();
+      final doc = await _collection
+          .doc(sessionId)
+          .get(const GetOptions(source: Source.server));
 
       if (!doc.exists) {
         return null;
@@ -157,7 +159,14 @@ class PaymentSessionService {
         return false;
       }
 
-      final session = await getPaymentSession(sessionId);
+      var session = await getPaymentSession(sessionId);
+      if (session != null &&
+          !session.isVerified &&
+          !session.isCompleted &&
+          session.userId == user.uid) {
+        session = await _verifySessionFromCurrentAuthState(session);
+      }
+
       return session != null &&
           session.isVerified &&
           !session.isCompleted &&
@@ -169,6 +178,39 @@ class PaymentSessionService {
 
   CollectionReference<Map<String, dynamic>> get _collection {
     return _firestore.collection('payment_sessions');
+  }
+
+  Future<PaymentSession> _verifySessionFromCurrentAuthState(
+    PaymentSession session,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return session;
+    }
+
+    await user.reload();
+    final refreshedUser = _auth.currentUser;
+    await refreshedUser?.getIdToken(true);
+
+    if (refreshedUser?.emailVerified != true ||
+        refreshedUser?.uid != session.userId ||
+        session.status != 'pending_verification' ||
+        session.emailSentAt == null) {
+      return session;
+    }
+
+    final now = DateTime.now();
+    await _collection.doc(session.sessionId).update({
+      'status': 'verified',
+      'verificationCompleted': true,
+      'verifiedAt': now.toIso8601String(),
+    });
+
+    return session.copyWith(
+      status: 'verified',
+      verificationCompleted: true,
+      verifiedAt: now,
+    );
   }
 
   Future<PaymentSession> _requireUserSession(String sessionId) async {
