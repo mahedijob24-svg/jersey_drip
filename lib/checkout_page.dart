@@ -7,6 +7,7 @@ import 'core/theme/app_spacing.dart';
 import 'core/theme/app_text_styles.dart';
 import 'models/cart_item.dart';
 import 'models/checkout_session.dart';
+import 'services/cart_service.dart';
 
 class CheckoutPage extends StatelessWidget {
   const CheckoutPage({super.key, required this.items});
@@ -21,7 +22,9 @@ class CheckoutPage extends StatelessWidget {
     return '৳$amount';
   }
 
-  void _openBkashPayment(BuildContext context) {
+  Future<void> _openBkashPayment(BuildContext context) async {
+    if (!await _validateStock(context)) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -32,7 +35,9 @@ class CheckoutPage extends StatelessWidget {
     );
   }
 
-  void _openCardPayment(BuildContext context) {
+  Future<void> _openCardPayment(BuildContext context) async {
+    if (!await _validateStock(context)) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -41,6 +46,22 @@ class CheckoutPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<bool> _validateStock(BuildContext context) async {
+    try {
+      await CartService().validateItemsInStock(items);
+      return true;
+    } catch (error) {
+      if (!context.mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Bad state: ', '')),
+          backgroundColor: AppColors.backgroundDark,
+        ),
+      );
+      return false;
+    }
   }
 
   @override

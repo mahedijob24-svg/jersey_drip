@@ -16,6 +16,16 @@ class ProductService {
     });
   }
 
+  Stream<Product?> productStream(String productId) {
+    return _firestore.collection('products').doc(productId).snapshots().map((
+      snapshot,
+    ) {
+      final data = snapshot.data();
+      if (!snapshot.exists || data == null) return null;
+      return _productFromSnapshot(snapshot.id, data);
+    });
+  }
+
   List<Product> _removeDuplicateProducts(List<Product> products) {
     final seenProductKeys = <String>{};
     final uniqueProducts = <Product>[];
@@ -48,7 +58,10 @@ class ProductService {
   Product _productFromDocument(
     QueryDocumentSnapshot<Map<String, dynamic>> document,
   ) {
-    final data = document.data();
+    return _productFromSnapshot(document.id, document.data());
+  }
+
+  Product _productFromSnapshot(String documentId, Map<String, dynamic> data) {
     final price = _readDouble(data['price']);
     final stockQuantity = _readInt(
       _readFirstValue(data, const [
@@ -91,12 +104,12 @@ class ProductService {
 
     if (imagePath.isEmpty) {
       debugPrint('PRODUCT IMAGE PATH MISSING');
-      debugPrint('Product document id: ${document.id}');
+      debugPrint('Product document id: $documentId');
       debugPrint('Available fields: ${data.keys.join(', ')}');
     }
 
     return Product(
-      id: document.id,
+      id: documentId,
       name: _readString(data['name'], fallback: 'Unnamed Product'),
       description: _readString(data['description']),
       price: originalPrice ?? price,

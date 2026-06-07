@@ -122,13 +122,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _addToCart(Product product) async {
+    if (!product.isAvailable) {
+      _showMessage('Product is out of stock');
+      return;
+    }
+
     try {
       await _cartService.addProduct(product);
       if (!mounted) return;
       _showMessage('${product.name} added to cart');
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      _showMessage('Unable to add product to cart');
+      final message = error.toString().replaceFirst('Bad state: ', '');
+      _showMessage(message.isEmpty ? 'Unable to add product to cart' : message);
     }
   }
 
@@ -372,9 +378,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ? _formatPrice(item.price)
                                           : null,
                                       wishlisted: isWishlisted,
+                                      available: item.isAvailable,
                                       onWishlistToggle: () =>
                                           _toggleWishlist(item, isWishlisted),
-                                      onAddToCart: () => _addToCart(item),
+                                      onAddToCart: item.isAvailable
+                                          ? () => _addToCart(item)
+                                          : null,
                                     ),
                                   );
                                 },

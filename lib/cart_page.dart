@@ -19,53 +19,150 @@ class _CartPageState extends State<CartPage> {
   final CartService _cartService = CartService();
   final Set<String> _selectedProductIds = {};
   final Set<String> _sizeRepairQueue = {};
+  final Set<String> _removingItemIds = {};
+  final Set<String> _optimisticQuantityItemIds = {};
+  final Set<String> _updatingQuantityItemIds = {};
+  final Map<String, CartItem> _optimisticItems = {};
   late final Stream<List<CartItem>> _cartStream = _cartService.cartStream();
+  late final Stream<Map<String, Map<String, SizeVariant>>> _productSizesStream =
+      _cartService.productSizesByProductStream();
 
   String _formatPrice(int amount) {
     return '৳$amount';
   }
 
   Future<void> _updateQuantity(CartItem item, int quantity) async {
+    if (_updatingQuantityItemIds.contains(item.id)) return;
+
+    final nextQuantity = quantity < 1 ? 1 : quantity;
+    final nextItem = item.copyWith(
+      quantity: nextQuantity,
+      totalPrice: item.price * nextQuantity,
+    );
+    setState(() {
+      _optimisticItems[item.id] = nextItem;
+      _optimisticQuantityItemIds.add(item.id);
+      _updatingQuantityItemIds.add(item.id);
+    });
+
     try {
-      await _cartService.updateQuantity(
-        item.productId,
-        quantity,
-        size: item.size,
-      );
+      await _cartService.updateCartItemQuantity(item, nextQuantity);
     } catch (_) {
       if (!mounted) return;
+      setState(() {
+        _optimisticItems.remove(item.id);
+        _optimisticQuantityItemIds.remove(item.id);
+        _updatingQuantityItemIds.remove(item.id);
+      });
       _showMessage('Unable to update cart item');
+      return;
     }
+
+    if (!mounted) return;
+    setState(() {
+      _updatingQuantityItemIds.remove(item.id);
+    });
   }
 
   Future<void> _updateSize(CartItem item, String size) async {
+    final originalItem = item;
+    setState(() {
+      _optimisticItems[item.id] = item.copyWith(size: size);
+    });
+
     try {
-      await _cartService.updateSize(item, size);
+      await _cartService.updateSize(originalItem, size);
     } catch (error) {
       if (!mounted) return;
+      setState(() {
+        _optimisticItems.remove(item.id);
+      });
       _showMessage(
         error.toString().replaceFirst('Bad state: ', '').trim().isEmpty
             ? 'Unable to update size'
             : error.toString().replaceFirst('Bad state: ', ''),
       );
+      return;
     }
+
+    if (!mounted) return;
+    setState(() {
+      _optimisticItems.remove(item.id);
+    });
   }
 
   Future<void> _removeItem(CartItem item) async {
-    try {
+    setState(() {
       _selectedProductIds.remove(item.id);
-      await _cartService.removeItem(item.productId, size: item.size);
+      _removingItemIds.add(item.id);
+    });
+
+    try {
+      await _cartService.removeCartItem(item);
     } catch (_) {
       if (!mounted) return;
+      setState(() {
+        _removingItemIds.remove(item.id);
+      });
       _showMessage('Unable to remove cart item');
     }
   }
 
   void _syncSelectionWithCart(List<CartItem> items) {
     final cartProductIds = items.map((item) => item.id).toSet();
-    _selectedProductIds.removeWhere(
-      (productId) => !cartProductIds.contains(productId),
-    );
+
+    for (final item in items) {
+      final optimisticItem = _optimisticItems[item.id];
+      if (optimisticItem != null &&
+          _optimisticQuantityItemIds.contains(item.id) &&
+          _cartQuantityHasSynced(item, optimisticItem)) {
+        _optimisticItems.remove(item.id);
+        _optimisticQuantityItemIds.remove(item.id);
+        _updatingQuantityItemIds.remove(item.id);
+      }
+    }
+
+    final selectedToRemove = _selectedProductIds
+        .where((itemId) => !cartProductIds.contains(itemId))
+        .toList(growable: false);
+    for (final itemId in selectedToRemove) {
+      _selectedProductIds.remove(itemId);
+    }
+
+    final optimisticToRemove = _optimisticItems.keys
+        .where((itemId) => !cartProductIds.contains(itemId))
+        .toList(growable: false);
+    for (final itemId in optimisticToRemove) {
+      _optimisticItems.remove(itemId);
+    }
+
+    final optimisticQuantityToRemove = _optimisticQuantityItemIds
+        .where((itemId) => !cartProductIds.contains(itemId))
+        .toList(growable: false);
+    for (final itemId in optimisticQuantityToRemove) {
+      _optimisticQuantityItemIds.remove(itemId);
+    }
+
+    final updatingToRemove = _updatingQuantityItemIds
+        .where((itemId) => !cartProductIds.contains(itemId))
+        .toList(growable: false);
+    for (final itemId in updatingToRemove) {
+      _updatingQuantityItemIds.remove(itemId);
+    }
+
+    final removingToClear = _removingItemIds
+        .where((itemId) => !cartProductIds.contains(itemId))
+        .toList(growable: false);
+    for (final itemId in removingToClear) {
+      _removingItemIds.remove(itemId);
+    }
+  }
+
+  bool _cartQuantityHasSynced(CartItem streamItem, CartItem optimisticItem) {
+    return streamItem.id == optimisticItem.id &&
+        streamItem.quantity == optimisticItem.quantity &&
+        streamItem.price == optimisticItem.price &&
+        streamItem.totalPrice == optimisticItem.totalPrice;
   }
 
   void _toggleItemSelection(String productId, bool selected) {
@@ -88,10 +185,27 @@ class _CartPageState extends State<CartPage> {
     });
   }
 
-  void _checkoutSelected(List<CartItem> selectedItems) {
+  void _checkoutSelected(
+    List<CartItem> selectedItems,
+    Map<String, Map<String, SizeVariant>> productSizes,
+  ) {
     if (selectedItems.isEmpty) {
       _showMessage('Please select at least one item');
       return;
+    }
+
+    for (final item in selectedItems) {
+      final stock = productSizes[item.productId]?[item.size]?.stock;
+      if (stock == null) continue;
+      final sizeText = item.size.isEmpty ? '' : ' (${item.size})';
+      if (stock <= 0) {
+        _showMessage('${item.name}$sizeText is out of stock');
+        return;
+      }
+      if (item.quantity > stock) {
+        _showMessage('Only $stock ${item.name}$sizeText left in stock');
+        return;
+      }
     }
 
     Navigator.push(
@@ -153,8 +267,13 @@ class _CartPageState extends State<CartPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final items = snapshot.data!;
-          _syncSelectionWithCart(items);
+          final rawItems = snapshot.data!;
+          _syncSelectionWithCart(rawItems);
+
+          final items = rawItems
+              .where((item) => !_removingItemIds.contains(item.id))
+              .map((item) => _optimisticItems[item.id] ?? item)
+              .toList(growable: false);
 
           final selectedItems = items
               .where((item) => _selectedProductIds.contains(item.id))
@@ -168,43 +287,46 @@ class _CartPageState extends State<CartPage> {
           final partiallySelected =
               _selectedProductIds.isNotEmpty && !allSelected;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _CartHeader(
-                itemCount: items.length,
-                allSelected: allSelected,
-                partiallySelected: partiallySelected,
-                onSelectAllChanged: items.isEmpty
-                    ? null
-                    : (selected) => _toggleSelectAll(items, selected ?? false),
-              ),
-              Expanded(
-                child: items.isEmpty
-                    ? const _CartStateMessage(
-                        title: 'Your cart is empty',
-                        message: 'Add products to see them here.',
-                      )
-                    : ListView.separated(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.lg,
-                          AppSpacing.sm,
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                        ),
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: AppSpacing.md),
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          return StreamBuilder<Map<String, SizeVariant>>(
-                            stream: _cartService.productSizesStream(
-                              item.productId,
+          return StreamBuilder<Map<String, Map<String, SizeVariant>>>(
+            stream: _productSizesStream,
+            builder: (context, sizesSnapshot) {
+              final productSizes =
+                  sizesSnapshot.data ??
+                  const <String, Map<String, SizeVariant>>{};
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _CartHeader(
+                    itemCount: items.length,
+                    allSelected: allSelected,
+                    partiallySelected: partiallySelected,
+                    onSelectAllChanged: items.isEmpty
+                        ? null
+                        : (selected) =>
+                              _toggleSelectAll(items, selected ?? false),
+                  ),
+                  Expanded(
+                    child: items.isEmpty
+                        ? const _CartStateMessage(
+                            title: 'Your cart is empty',
+                            message: 'Add products to see them here.',
+                          )
+                        : ListView.separated(
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.sm,
+                              AppSpacing.lg,
+                              AppSpacing.lg,
                             ),
-                            builder: (context, sizeSnapshot) {
+                            itemCount: items.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: AppSpacing.md),
+                            itemBuilder: (context, index) {
+                              final item = items[index];
                               final sizes =
-                                  sizeSnapshot.data ??
+                                  productSizes[item.productId] ??
                                   const <String, SizeVariant>{};
                               final effectiveSize = _effectiveCartSize(
                                 item,
@@ -213,9 +335,15 @@ class _CartPageState extends State<CartPage> {
                               if (effectiveSize != item.size) {
                                 _repairLegacyCartSize(item, effectiveSize);
                               }
+                              final displayItem = item.copyWith(
+                                size: effectiveSize,
+                              );
                               final selectedStock = sizes[effectiveSize]?.stock;
+                              final quantityUpdating = _updatingQuantityItemIds
+                                  .contains(item.id);
+
                               return _CartItemTile(
-                                item: item.copyWith(size: effectiveSize),
+                                item: displayItem,
                                 selected: _selectedProductIds.contains(item.id),
                                 sizes: sizes,
                                 stock: selectedStock,
@@ -227,35 +355,39 @@ class _CartPageState extends State<CartPage> {
                                       selected ?? false,
                                     ),
                                 onSizeChanged: (size) =>
-                                    _updateSize(item, size),
-                                onDecrease: item.quantity == 1
-                                    ? () => _removeItem(item)
+                                    _updateSize(displayItem, size),
+                                onDecrease: quantityUpdating
+                                    ? null
+                                    : item.quantity == 1
+                                    ? () => _removeItem(displayItem)
                                     : () => _updateQuantity(
-                                        item,
+                                        displayItem,
                                         item.quantity - 1,
                                       ),
                                 onIncrease:
-                                    selectedStock != null &&
-                                        item.quantity >= selectedStock
+                                    quantityUpdating ||
+                                        (selectedStock != null &&
+                                            item.quantity >= selectedStock)
                                     ? null
                                     : () => _updateQuantity(
-                                        item,
+                                        displayItem,
                                         item.quantity + 1,
                                       ),
-                                onDelete: () => _removeItem(item),
+                                onDelete: () => _removeItem(displayItem),
                               );
                             },
-                          );
-                        },
-                      ),
-              ),
-              _CartTotalBar(
-                selectedCount: selectedItems.length,
-                totalText: _formatPrice(selectedTotal),
-                checkoutEnabled: selectedItems.isNotEmpty,
-                onCheckout: () => _checkoutSelected(selectedItems),
-              ),
-            ],
+                          ),
+                  ),
+                  _CartTotalBar(
+                    selectedCount: selectedItems.length,
+                    totalText: _formatPrice(selectedTotal),
+                    checkoutEnabled: selectedItems.isNotEmpty,
+                    onCheckout: () =>
+                        _checkoutSelected(selectedItems, productSizes),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),

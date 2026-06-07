@@ -21,6 +21,15 @@ class CartService {
     );
   }
 
+  Stream<Map<String, Map<String, SizeVariant>>> productSizesByProductStream() {
+    return _firestore.collection('products').snapshots().map((snapshot) {
+      return {
+        for (final document in snapshot.docs)
+          document.id: _sizeVariantsFromProductData(document.data()),
+      };
+    });
+  }
+
   Future<void> addProduct(Product product) async {
     final variant = product.defaultVariant;
     return addItem(
@@ -51,16 +60,21 @@ class CartService {
       final snapshot = await transaction.get(document);
       final productSnapshot = await transaction.get(productDocument);
       final productData = productSnapshot.data();
-      final stock = productData == null
-          ? null
-          : _stockForProductSelection(productData, normalizedSize);
+      if (!productSnapshot.exists || productData == null) {
+        throw StateError('Product is no longer available');
+      }
+
+      final stock = _stockForProductSelection(productData, normalizedSize);
+      if (stock == null || stock <= 0) {
+        throw StateError('Selected size is out of stock');
+      }
 
       if (snapshot.exists) {
         final data = snapshot.data();
         final currentQuantity = _readInt(data?['quantity'], fallback: 1);
         final cartPrice = _readInt(data?['price'], fallback: price);
         final nextQuantity = currentQuantity + quantity;
-        if (stock != null && nextQuantity > stock) {
+        if (nextQuantity > stock) {
           throw StateError('Only $stock left in stock');
         }
 
@@ -71,7 +85,7 @@ class CartService {
         return;
       }
 
-      if (stock != null && quantity > stock) {
+      if (quantity > stock) {
         throw StateError('Only $stock left in stock');
       }
 
@@ -108,10 +122,49 @@ class CartService {
       final cartSize = _readString(data?['size'], fallback: size);
       final productSnapshot = await transaction.get(productDocument);
       final productData = productSnapshot.data();
-      final stock = productData == null
-          ? null
-          : _stockForProductSelection(productData, cartSize);
-      if (stock != null && nextQuantity > stock) {
+      if (!productSnapshot.exists || productData == null) {
+        throw StateError('Product is no longer available');
+      }
+      final stock = _stockForProductSelection(productData, cartSize);
+      if (stock == null || stock <= 0) {
+        throw StateError('Item out of stock');
+      }
+      if (nextQuantity > stock) {
+        throw StateError('Only $stock left in stock');
+      }
+
+      transaction.update(document, {
+        'quantity': nextQuantity,
+        'totalPrice': price * nextQuantity,
+      });
+    });
+  }
+
+  Future<void> updateCartItemQuantity(CartItem item, int quantity) async {
+    final uid = _requireUid();
+    final nextQuantity = quantity < 1 ? 1 : quantity;
+    final document = _cartCollection(uid).doc(item.id);
+    final productDocument = _firestore
+        .collection('products')
+        .doc(item.productId);
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(document);
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data();
+      final price = _readInt(data?['price'], fallback: item.price);
+      final cartSize = _readString(data?['size'], fallback: item.size);
+      final productSnapshot = await transaction.get(productDocument);
+      final productData = productSnapshot.data();
+      if (!productSnapshot.exists || productData == null) {
+        throw StateError('Product is no longer available');
+      }
+      final stock = _stockForProductSelection(productData, cartSize);
+      if (stock == null || stock <= 0) {
+        throw StateError('Item out of stock');
+      }
+      if (nextQuantity > stock) {
         throw StateError('Only $stock left in stock');
       }
 
@@ -127,9 +180,7 @@ class CartService {
     final nextSize = size.trim();
     if (nextSize.isEmpty || nextSize == item.size) return;
 
-    final currentDocument = _cartCollection(
-      uid,
-    ).doc(_cartDocumentId(item.productId, item.size));
+    final currentDocument = _cartCollection(uid).doc(item.id);
     final nextDocument = _cartCollection(
       uid,
     ).doc(_cartDocumentId(item.productId, nextSize));
@@ -143,7 +194,9 @@ class CartService {
 
       final productSnapshot = await transaction.get(productDocument);
       final productData = productSnapshot.data();
-      if (productData == null) return;
+      if (!productSnapshot.exists || productData == null) {
+        throw StateError('Product is no longer available');
+      }
 
       final variant = _variantForProductSelection(productData, nextSize);
       if (variant == null || variant.stock <= 0) {
@@ -169,11 +222,19 @@ class CartService {
         return;
       }
 
-      transaction.update(currentDocument, {
+      final nextData = {
         'size': nextSize,
         'price': variant.price,
         'totalPrice': variant.price * item.quantity,
-      });
+      };
+
+      if (currentDocument.id == nextDocument.id) {
+        transaction.update(currentDocument, nextData);
+        return;
+      }
+
+      transaction.set(nextDocument, {...currentSnapshot.data()!, ...nextData});
+      transaction.delete(currentDocument);
     });
   }
 
@@ -184,24 +245,43 @@ class CartService {
       final data = snapshot.data();
       if (data == null) return const <String, SizeVariant>{};
 
-      return _readSizeVariants(
-        data['sizes'],
-        fallbackPrice: _readInt(data['price']),
-        fallbackStock: _readInt(
-          data['quantity'] ??
-              data['stockQuantity'] ??
-              data['stockquantity'] ??
-              data['stock_quantity'] ??
-              data['stock'],
-        ),
-        category: _readString(data['category']),
-      );
+      return _sizeVariantsFromProductData(data);
     });
+  }
+
+  Future<Product?> currentProduct(String productId) async {
+    final snapshot = await _firestore
+        .collection('products')
+        .doc(productId)
+        .get();
+    final data = snapshot.data();
+    if (!snapshot.exists || data == null) return null;
+
+    final price = _readInt(data['price']);
+    return Product(
+      id: snapshot.id,
+      name: _readString(data['name'], fallback: 'Product'),
+      description: _readString(data['description']),
+      price: price.toDouble(),
+      discountedPrice: price.toDouble(),
+      category: _readString(data['category']),
+      brand: _readString(data['brand']),
+      imagePath: _readString(data['imagePath']),
+      stockQuantity: _fallbackStock(data),
+      sizes: _sizeVariantsFromProductData(data),
+      featured: data['featured'] == true,
+      createdAt: DateTime.now(),
+    );
   }
 
   Future<void> removeItem(String productId, {String size = ''}) {
     final uid = _requireUid();
     return _cartCollection(uid).doc(_cartDocumentId(productId, size)).delete();
+  }
+
+  Future<void> removeCartItem(CartItem item) {
+    final uid = _requireUid();
+    return _cartCollection(uid).doc(item.id).delete();
   }
 
   Future<void> validateItemsInStock(List<CartItem> items) async {
@@ -211,9 +291,15 @@ class CartService {
           .doc(item.productId)
           .get();
       final data = snapshot.data();
-      if (data == null) continue;
+      if (!snapshot.exists || data == null) {
+        throw StateError('${item.name} is no longer available');
+      }
 
       final stock = _stockForCartItem(data, item);
+      if (stock <= 0) {
+        final sizeText = item.size.isEmpty ? '' : ' (${item.size})';
+        throw StateError('${item.name}$sizeText is out of stock');
+      }
       if (item.quantity > stock) {
         final sizeText = item.size.isEmpty ? '' : ' (${item.size})';
         throw StateError('Only $stock ${item.name}$sizeText left in stock');
@@ -243,6 +329,33 @@ class CartService {
     return fallback;
   }
 
+  Map<String, SizeVariant> _sizeVariantsFromProductData(
+    Map<String, dynamic> data,
+  ) {
+    return _readSizeVariants(
+      data['sizes'],
+      fallbackPrice: _readInt(data['price']),
+      fallbackStock: _readInt(
+        data['quantity'] ??
+            data['stockQuantity'] ??
+            data['stockquantity'] ??
+            data['stock_quantity'] ??
+            data['stock'],
+      ),
+      category: _readString(data['category']),
+    );
+  }
+
+  int _fallbackStock(Map<String, dynamic> data) {
+    return _readInt(
+      data['quantity'] ??
+          data['stockQuantity'] ??
+          data['stockquantity'] ??
+          data['stock_quantity'] ??
+          data['stock'],
+    );
+  }
+
   int _stockForCartItem(Map<String, dynamic> data, CartItem item) {
     final sizes = data['sizes'];
     if (sizes is Map && item.size.isNotEmpty) {
@@ -250,6 +363,7 @@ class CartService {
       if (variant is Map) {
         return _readInt(variant['stock']);
       }
+      return 0;
     }
 
     return _readInt(
@@ -262,6 +376,11 @@ class CartService {
   }
 
   int? _stockForProductSelection(Map<String, dynamic> data, String size) {
+    final sizes = data['sizes'];
+    if (sizes is Map && size.isNotEmpty && !sizes.containsKey(size)) {
+      return null;
+    }
+
     final variant = _variantForProductSelection(data, size);
     if (variant != null) return variant.stock;
 
@@ -326,7 +445,13 @@ class CartService {
           size,
           SizeVariant(price: fallbackPrice, stock: fallbackStock),
         );
-      })..removeWhere((key, _) => key.isEmpty);
+      });
+      final emptyKeys = variants.keys
+          .where((key) => key.isEmpty)
+          .toList(growable: false);
+      for (final key in emptyKeys) {
+        variants.remove(key);
+      }
       if (variants.isNotEmpty) return variants;
     }
 

@@ -14,6 +14,7 @@ class ProductCard extends StatelessWidget {
     this.originalPrice,
     required this.wishlisted,
     required this.onWishlistToggle,
+    this.available = true,
     this.onAddToCart,
   });
 
@@ -22,6 +23,7 @@ class ProductCard extends StatelessWidget {
   final String price;
   final String? originalPrice;
   final bool wishlisted;
+  final bool available;
   final VoidCallback onWishlistToggle;
   final VoidCallback? onAddToCart;
 
@@ -152,6 +154,30 @@ class ProductCard extends StatelessWidget {
                 ),
                 Positioned(
                   top: AppSpacing.sm,
+                  left: AppSpacing.sm,
+                  child: available
+                      ? const SizedBox.shrink()
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'OUT',
+                            style: AppTextStyles.label.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                ),
+                Positioned(
+                  top: AppSpacing.sm,
                   right: AppSpacing.sm,
                   child: InkWell(
                     onTap: onWishlistToggle,
@@ -234,7 +260,7 @@ class ProductCard extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     Container(
                       decoration: BoxDecoration(
-                        color: AppColors.accent,
+                        color: available ? AppColors.accent : AppColors.border,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
@@ -246,8 +272,13 @@ class ProductCard extends StatelessWidget {
                       ),
                       child: IconButton(
                         tooltip: 'Add to cart',
-                        onPressed: onAddToCart,
-                        icon: const Icon(Icons.add, color: Colors.white),
+                        onPressed: available ? onAddToCart : null,
+                        icon: Icon(
+                          Icons.add,
+                          color: available
+                              ? Colors.white
+                              : AppColors.textSecondary,
+                        ),
                         iconSize: 20,
                         padding: const EdgeInsets.all(8),
                         constraints: const BoxConstraints(

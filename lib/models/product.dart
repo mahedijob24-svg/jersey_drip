@@ -3,6 +3,8 @@ class SizeVariant {
 
   final int price;
   final int stock;
+
+  bool get isAvailable => stock > 0;
 }
 
 const List<String> _letterSizeOrder = ['S', 'M', 'L', 'XL'];
@@ -72,6 +74,15 @@ class Product {
   });
 
   List<String> get sizeOptions => sortedSizeKeys(sizes);
+
+  bool get isAvailable {
+    if (sizes.isEmpty) return stockQuantity > 0;
+    return sizes.values.any((variant) => variant.isAvailable);
+  }
+
+  bool isSizeAvailable(String size) {
+    return (sizes[size]?.stock ?? 0) > 0;
+  }
 
   SizeVariant? variantForSize(String size) => sizes[size];
 

@@ -22,6 +22,8 @@ class _WishlistPageState extends State<WishlistPage> {
   final CartService _cartService = CartService();
   late final Stream<List<WishlistItem>> _wishlistStream = _wishlistService
       .wishlistStream();
+  late final Stream<Map<String, Map<String, SizeVariant>>> _productSizesStream =
+      _cartService.productSizesByProductStream();
 
   String _formatPrice(int amount) {
     return '৳$amount';
@@ -29,18 +31,34 @@ class _WishlistPageState extends State<WishlistPage> {
 
   Future<void> _addToCart(WishlistItem item) async {
     try {
+      final product = await _cartService.currentProduct(item.productId);
+      if (product == null || !product.isAvailable) {
+        if (!mounted) return;
+        _showMessage('Product is out of stock');
+        return;
+      }
+
+      final size = product.defaultSize;
+      final variant = product.variantForSize(size);
+      if (variant == null || variant.stock <= 0) {
+        if (!mounted) return;
+        _showMessage('Selected size is out of stock');
+        return;
+      }
+
       await _cartService.addItem(
-        productId: item.productId,
-        size: 'One Size',
-        name: item.name,
-        price: item.price,
-        imagePath: item.imagePath,
+        productId: product.id,
+        size: size,
+        name: product.name,
+        price: variant.price,
+        imagePath: product.imagePath,
       );
       if (!mounted) return;
       _showMessage('${item.name} added to cart');
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      _showMessage('Unable to add product to cart');
+      final message = error.toString().replaceFirst('Bad state: ', '');
+      _showMessage(message.isEmpty ? 'Unable to add product to cart' : message);
     }
   }
 
@@ -118,53 +136,73 @@ class _WishlistPageState extends State<WishlistPage> {
 
           final items = snapshot.data!;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                ),
-                child: Text(
-                  'Wishlist',
-                  style: AppTextStyles.headingLarge.copyWith(
-                    color: AppColors.backgroundDark,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: items.isEmpty
-                    ? const _WishlistStateMessage(
-                        title: 'Your wishlist is empty',
-                        message: 'Save products to find them here later.',
-                      )
-                    : ListView.separated(
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.lg,
-                          AppSpacing.sm,
-                          AppSpacing.lg,
-                          AppSpacing.lg,
-                        ),
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: AppSpacing.md),
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          return _WishlistItemTile(
-                            item: item,
-                            priceText: _formatPrice(item.price),
-                            onAddToCart: () => _addToCart(item),
-                            onRemove: () => _removeFromWishlist(item),
-                            onTap: () => _openProductDetails(item),
-                          );
-                        },
+          return StreamBuilder<Map<String, Map<String, SizeVariant>>>(
+            stream: _productSizesStream,
+            builder: (context, sizesSnapshot) {
+              final productSizes =
+                  sizesSnapshot.data ??
+                  const <String, Map<String, SizeVariant>>{};
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                    ),
+                    child: Text(
+                      'Wishlist',
+                      style: AppTextStyles.headingLarge.copyWith(
+                        color: AppColors.backgroundDark,
                       ),
-              ),
-            ],
+                    ),
+                  ),
+                  Expanded(
+                    child: items.isEmpty
+                        ? const _WishlistStateMessage(
+                            title: 'Your wishlist is empty',
+                            message: 'Save products to find them here later.',
+                          )
+                        : ListView.separated(
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.lg,
+                              AppSpacing.sm,
+                              AppSpacing.lg,
+                              AppSpacing.lg,
+                            ),
+                            itemCount: items.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: AppSpacing.md),
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              final sizes =
+                                  productSizes[item.productId] ??
+                                  const <String, SizeVariant>{};
+                              final available =
+                                  sizes.isEmpty ||
+                                  sizes.values.any(
+                                    (variant) => variant.stock > 0,
+                                  );
+                              return _WishlistItemTile(
+                                item: item,
+                                priceText: _formatPrice(item.price),
+                                available: available,
+                                onAddToCart: available
+                                    ? () => _addToCart(item)
+                                    : null,
+                                onRemove: () => _removeFromWishlist(item),
+                                onTap: () => _openProductDetails(item),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -176,6 +214,7 @@ class _WishlistItemTile extends StatelessWidget {
   const _WishlistItemTile({
     required this.item,
     required this.priceText,
+    required this.available,
     required this.onAddToCart,
     required this.onRemove,
     required this.onTap,
@@ -183,7 +222,8 @@ class _WishlistItemTile extends StatelessWidget {
 
   final WishlistItem item;
   final String priceText;
-  final VoidCallback onAddToCart;
+  final bool available;
+  final VoidCallback? onAddToCart;
   final VoidCallback onRemove;
   final VoidCallback onTap;
 
@@ -268,10 +308,14 @@ class _WishlistItemTile extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: onAddToCart,
                       icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                      label: const Text('Add to Cart'),
+                      label: Text(available ? 'Add to Cart' : 'OUT OF STOCK'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
+                        backgroundColor: available
+                            ? AppColors.accent
+                            : AppColors.border,
+                        foregroundColor: available
+                            ? Colors.white
+                            : AppColors.textSecondary,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.md,
