@@ -96,10 +96,8 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage>
         items: widget.result.session.items,
         paymentMethod: widget.result.paymentMethod,
         transactionId: widget.result.transactionId,
+        paymentSessionId: widget.paymentSessionId,
       );
-
-      // Mark payment session as completed after order is created
-      await _sessionService.markSessionCompleted(widget.paymentSessionId);
 
       await Future<void>.delayed(const Duration(milliseconds: 1200));
       if (!mounted) return;
@@ -107,14 +105,17 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage>
         context,
         MaterialPageRoute(builder: (_) => OrderReceiptPage(order: order)),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _creatingOrder = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Unable to create order')));
+      final message = error.toString().replaceFirst('Bad state: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message.isEmpty ? 'Unable to create order' : message),
+        ),
+      );
     }
   }
 
