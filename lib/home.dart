@@ -229,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: AppSpacing.xs),
                                 Text(
-                                  'Welcome back to Jersey Drip',
+                                  'Welcome to Jersey Drip',
                                   style: AppTextStyles.body.copyWith(
                                     color: AppColors.textSecondary,
                                   ),

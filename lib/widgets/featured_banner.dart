@@ -14,7 +14,8 @@ class FeaturedBanner extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.backgroundDeep, AppColors.accent],
+          colors: [AppColors.deepBlue, AppColors.navy, AppColors.accent],
+          stops: [0, 0.58, 1],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -49,22 +50,6 @@ class FeaturedBanner extends StatelessWidget {
                         : constraints.maxWidth * 0.58,
                   ),
                 ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.backgroundDeep.withAlpha(240),
-                          AppColors.backgroundDeep.withAlpha(118),
-                          AppColors.backgroundDeep.withAlpha(0),
-                        ],
-                        stops: const [0, 0.54, 1],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                    ),
-                  ),
-                ),
                 Positioned(
                   left: 0,
                   top: isCompact ? AppSpacing.sm : null,
@@ -80,7 +65,7 @@ class FeaturedBanner extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'NEW SEASON JERSEYS',
+                          'FIFA WORLD CUP 2026 JERSEYS',
                           style: AppTextStyles.headingMedium.copyWith(
                             color: Colors.white,
                             fontSize: isCompact ? 24 : 28,
@@ -88,7 +73,7 @@ class FeaturedBanner extends StatelessWidget {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'Discover the latest club and national team kits',
+                          'Discover the latest premium jerseys',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: AppTextStyles.body.copyWith(
