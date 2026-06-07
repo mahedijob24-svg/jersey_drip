@@ -163,32 +163,32 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
-  Future<void> _signInWithGoogle() async {
-    debugPrint('[AuthScreen] _signInWithGoogle tapped');
-    setState(() {
-      _isLoading = true;
-    });
+  // Future<void> _signInWithGoogle() async {
+  //   debugPrint('[AuthScreen] _signInWithGoogle tapped');
+  //   setState(() {
+  //     _isLoading = true;
+  //   });
 
-    try {
-      final result = await _authService.signInWithGoogle();
-      debugPrint('[AuthScreen] Google sign-in result: ${result.user?.email}');
-      await _authService.reloadCurrentUser();
-      await _navigateToHome();
-    } catch (error, stackTrace) {
-      debugPrint('[AuthScreen] Google sign-in failed: $error');
-      debugPrint(stackTrace.toString());
-      final message = error is Exception
-          ? AuthExceptionHandler.getMessage(error)
-          : 'Google sign in failed. Please try again.';
-      _showMessage(message, Colors.redAccent);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
+  //   try {
+  //     final result = await _authService.signInWithGoogle();
+  //     debugPrint('[AuthScreen] Google sign-in result: ${result.user?.email}');
+  //     await _authService.reloadCurrentUser();
+  //     await _navigateToHome();
+  //   } catch (error, stackTrace) {
+  //     debugPrint('[AuthScreen] Google sign-in failed: $error');
+  //     debugPrint(stackTrace.toString());
+  //     final message = error is Exception
+  //         ? AuthExceptionHandler.getMessage(error)
+  //         : 'Google sign in failed. Please try again.';
+  //     _showMessage(message, Colors.redAccent);
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         _isLoading = false;
+  //       });
+  //     }
+  //   }
+  // }
 
   void _toggleMode() {
     setState(() {
@@ -266,7 +266,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         const SizedBox(height: AppSpacing.lg),
                         AuthHeader(
                           title: _isLogin
-                              ? 'Welcome back'
+                              ? 'Welcome'
                               : 'Create your account',
                           subtitle: _isLogin
                               ? 'Sign in to continue shopping.'
@@ -345,15 +345,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   ),
                                 ),
                               const SizedBox(height: AppSpacing.sm),
-                              AuthButton(
-                                label: _isLogin
-                                    ? 'Continue with Google'
-                                    : 'Create account with Google',
-                                onPressed: _signInWithGoogle,
-                                isLoading: _isLoading,
-                                isPrimary: false,
-                                enabled: !_isLoading,
-                              ),
+                              // AuthButton(
+                              //   label: _isLogin
+                              //       ? 'Continue with Google'
+                              //       : 'Create account with Google',
+                              //   onPressed: _signInWithGoogle,
+                              //   isLoading: _isLoading,
+                              //   isPrimary: false,
+                              //   enabled: !_isLoading,
+                              // ),
                               const SizedBox(height: AppSpacing.sm),
                               TextButton(
                                 onPressed: _isLoading ? null : _toggleMode,

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserProfile {
   const UserProfile({
+    required this.role,
     required this.uid,
     required this.name,
     required this.email,
@@ -14,6 +15,7 @@ class UserProfile {
     this.updatedAt,
   });
 
+  final String role;
   final String uid;
   final String name;
   final String email;
@@ -35,8 +37,9 @@ class UserProfile {
       city: _readString(data['city']),
       postalCode: _readString(data['postalCode']),
       country: _readString(data['country']),
-      createdAt: _readDate(data['createdAt']),
-      updatedAt: _readDate(data['updatedAt']),
+      role: _readString(data['role']).isEmpty ? 'user' : data['role'],
+      createdAt: _readDateString(data['createdAt']),
+      updatedAt: _readDateString(data['updatedAt']),
     );
   }
 
@@ -57,6 +60,7 @@ class UserProfile {
 
   UserProfile copyWith({
     String? name,
+    String? role,
     String? email,
     String? phoneNumber,
     String? address,
@@ -69,6 +73,7 @@ class UserProfile {
     return UserProfile(
       uid: uid,
       name: name ?? this.name,
+      role: role ?? this.role,
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       address: address ?? this.address,
@@ -82,10 +87,10 @@ class UserProfile {
 
   static String _readString(Object? value) => value as String? ?? '';
 
-  static DateTime? _readDate(Object? value) {
+  static DateTime? _readDateString(Object? value) {
     if (value == null) return null;
-    if (value is Timestamp) return value.toDate();
     if (value is String) return DateTime.tryParse(value);
+    if (value is Timestamp) return value.toDate();
     return null;
   }
 }

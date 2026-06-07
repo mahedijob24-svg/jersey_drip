@@ -15,7 +15,9 @@ class ProfileService {
     if (snapshot.exists) {
       final data = snapshot.data() ?? {};
       final profile = UserProfile.fromFirestore(data);
+
       await _backfillMissingIdentityFields(profile, user, data);
+
       return profile.copyWith(
         email: user.email ?? profile.email,
         name: profile.name.isNotEmpty
@@ -25,6 +27,7 @@ class ProfileService {
     }
 
     final now = DateTime.now();
+
     final profile = UserProfile(
       uid: user.uid,
       name: user.displayName ?? '',
@@ -34,6 +37,10 @@ class ProfileService {
       city: '',
       postalCode: '',
       country: '',
+
+      // ✅ ALWAYS DEFAULT ROLE
+      role: 'user',
+
       createdAt: now,
       updatedAt: now,
     );
@@ -47,9 +54,11 @@ class ProfileService {
     yield profile;
 
     final user = _requireCurrentUser();
+
     yield* _usersCollection.doc(user.uid).snapshots().map((snapshot) {
       final data = snapshot.data() ?? profile.toFirestore();
       final currentProfile = UserProfile.fromFirestore(data);
+
       return currentProfile.copyWith(email: user.email ?? currentProfile.email);
     });
   }
@@ -69,6 +78,7 @@ class ProfileService {
     if (!snapshot.exists) {
       await getOrCreateCurrentUserProfile();
     }
+    final existingRole = snapshot.data()?['role'] ?? 'user';
 
     await docRef.set({
       'uid': user.uid,
@@ -77,6 +87,8 @@ class ProfileService {
       'phoneNumber': phoneNumber.trim(),
       'address': address.trim(),
       'city': city.trim(),
+      'role': existingRole,
+
       'postalCode': postalCode.trim(),
       'country': country.trim(),
       'updatedAt': DateTime.now().toIso8601String(),
@@ -89,6 +101,7 @@ class ProfileService {
     Map<String, dynamic> data,
   ) async {
     final updates = <String, dynamic>{};
+
     if (profile.uid.isEmpty) updates['uid'] = user.uid;
     if (profile.email != user.email && user.email != null) {
       updates['email'] = user.email;
@@ -96,17 +109,25 @@ class ProfileService {
     if (profile.name.isEmpty && user.displayName != null) {
       updates['name'] = user.displayName;
     }
+
     if (!data.containsKey('phoneNumber')) updates['phoneNumber'] = '';
     if (!data.containsKey('address')) updates['address'] = '';
     if (!data.containsKey('city')) updates['city'] = '';
     if (!data.containsKey('postalCode')) updates['postalCode'] = '';
     if (!data.containsKey('country')) updates['country'] = '';
-    if (profile.createdAt == null) {
+
+    if (!data.containsKey('role')) {
+      updates['role'] = 'user';
+    }
+
+    if (!data.containsKey('createdAt')) {
       updates['createdAt'] = DateTime.now().toIso8601String();
     }
-    if (profile.updatedAt == null) {
+
+    if (!data.containsKey('updatedAt')) {
       updates['updatedAt'] = DateTime.now().toIso8601String();
     }
+
     if (updates.isNotEmpty) {
       await _usersCollection
           .doc(user.uid)

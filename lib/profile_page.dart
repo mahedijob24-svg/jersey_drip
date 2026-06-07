@@ -12,6 +12,7 @@ import 'services/auth_service.dart';
 import 'services/profile_service.dart';
 import 'widgets/initials_avatar.dart';
 import 'wishlist_page.dart';
+import '../admin/admin_panel_screen.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -153,6 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _ActionSection(
+                      role: profile.role,
                       onEditProfile: () => _openEditProfile(profile),
                       onOrders: _openOrders,
                       onWishlist: _openWishlist,
@@ -280,12 +282,14 @@ class _InfoRow extends StatelessWidget {
 
 class _ActionSection extends StatelessWidget {
   const _ActionSection({
+    required this.role,
     required this.onEditProfile,
     required this.onOrders,
     required this.onWishlist,
     required this.onLogout,
   });
 
+  final String role;
   final VoidCallback onEditProfile;
   final VoidCallback onOrders;
   final VoidCallback onWishlist;
@@ -313,6 +317,19 @@ class _ActionSection extends StatelessWidget {
             label: 'Wishlist',
             onTap: onWishlist,
           ),
+
+          if (role == "admin" || role == "superadmin")
+            _ActionTile(
+              icon: Icons.admin_panel_settings,
+              label: 'Admin Panel',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+                );
+              },
+            ),
+
           _ActionTile(
             icon: Icons.logout,
             label: 'Logout',
