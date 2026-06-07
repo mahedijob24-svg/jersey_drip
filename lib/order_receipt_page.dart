@@ -42,7 +42,7 @@ class OrderReceiptPage extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           children: [
             Text(
-              'Order Processing',
+              'Order Pending',
               style: AppTextStyles.headingLarge.copyWith(
                 color: AppColors.backgroundDark,
               ),
@@ -55,7 +55,7 @@ class OrderReceiptPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
-            _ReceiptInfoRow(label: 'Status', value: 'Processing'),
+            _ReceiptInfoRow(label: 'Status', value: 'Pending'),
             _ReceiptInfoRow(
               label: 'Payment',
               value: _paymentMethodLabel(order.paymentMethod),

@@ -5,6 +5,7 @@ class AdminDashboardStats {
   final double totalRevenue;
   final int lowStockCount;
   final int outOfStockCount;
+  final int totalUsers;
 
   AdminDashboardStats({
     required this.totalProducts,
@@ -13,5 +14,6 @@ class AdminDashboardStats {
     required this.totalRevenue,
     required this.lowStockCount,
     required this.outOfStockCount,
+    required this.totalUsers,
   });
 }

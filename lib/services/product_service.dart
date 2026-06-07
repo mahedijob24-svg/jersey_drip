@@ -116,11 +116,29 @@ class ProductService {
       category: _normalizeCategory(data['category']),
       brand: _readString(data['brand']),
       imagePath: imagePath,
+      images: _readImageList(data['images'], imagePath),
       stockQuantity: stockQuantity,
       sizes: sizes,
       featured: data['featured'] == true,
+      isActive: data['isActive'] != false,
       createdAt: _readDateTime(data['createdAt']),
     );
+  }
+
+  List<String> _readImageList(Object? value, String fallback) {
+    if (value is Iterable) {
+      return value
+          .whereType<String>()
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    if (fallback.isNotEmpty) {
+      return [fallback];
+    }
+
+    return const [];
   }
 
   String _readString(Object? value, {String fallback = ''}) {

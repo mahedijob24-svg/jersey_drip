@@ -53,9 +53,11 @@ class Product {
   final String category;
   final String brand;
   final String imagePath;
+  final List<String> images;
   final int stockQuantity;
   final Map<String, SizeVariant> sizes;
   final bool featured;
+  final bool isActive;
   final DateTime createdAt;
 
   Product({
@@ -65,13 +67,17 @@ class Product {
     required this.price,
     required this.discountedPrice,
     required this.category,
-    required this.brand,
-    required this.imagePath,
-    required this.stockQuantity,
-    required this.sizes,
-    required this.featured,
-    required this.createdAt,
-  });
+    this.brand = '',
+    this.imagePath = '',
+    List<String>? images,
+    this.stockQuantity = 0,
+    Map<String, SizeVariant>? sizes,
+    this.featured = false,
+    this.isActive = true,
+    DateTime? createdAt,
+  }) : images = images ?? const [],
+       sizes = sizes ?? const {},
+       createdAt = createdAt ?? DateTime.now();
 
   List<String> get sizeOptions => sortedSizeKeys(sizes);
 

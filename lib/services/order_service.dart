@@ -102,7 +102,7 @@ class OrderService {
         'totalPrice': totalPrice,
         'paymentMethod': paymentMethod,
         'paymentStatus': 'paid',
-        'status': 'processing',
+        'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
         'transactionId': transactionId,
       });
@@ -124,7 +124,7 @@ class OrderService {
       totalPrice: totalPrice,
       paymentMethod: paymentMethod,
       paymentStatus: 'paid',
-      status: 'processing',
+      status: 'pending',
       createdAt: createdAt,
       transactionId: transactionId,
     );

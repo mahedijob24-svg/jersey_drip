@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'views/admin_dashboard.dart';
-import 'views/admin_products.dart';
+import 'views/admin_inventory.dart';
 import 'views/admin_orders.dart';
+import 'views/admin_products.dart';
 import 'views/admin_users.dart';
 
 class AdminPanelScreen extends StatefulWidget {
@@ -14,14 +15,25 @@ class AdminPanelScreen extends StatefulWidget {
 class _AdminPanelScreenState extends State<AdminPanelScreen> {
   int index = 0;
 
-  final pages = const [
-    AdminDashboard(),
-    AdminProducts(),
-    AdminOrders(),
-    AdminUsers(),
+  late final List<Widget> pages = [
+    AdminDashboard(onNavigate: _navigateToSection),
+    const AdminOrders(),
+    const AdminProducts(),
+    const AdminInventory(),
+    const AdminUsers(),
   ];
 
-  final titles = const ["Dashboard", "Products", "Orders", "Users"];
+  final titles = const [
+    "Dashboard",
+    "Orders",
+    "Products",
+    "Inventory",
+    "Users",
+  ];
+
+  void _navigateToSection(int sectionIndex) {
+    setState(() => index = sectionIndex);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +59,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   label: Text("Dashboard"),
                 ),
                 NavigationRailDestination(
+                  icon: Icon(Icons.list_alt),
+                  label: Text("Orders"),
+                ),
+                NavigationRailDestination(
                   icon: Icon(Icons.inventory),
                   label: Text("Products"),
                 ),
                 NavigationRailDestination(
-                  icon: Icon(Icons.list_alt),
-                  label: Text("Orders"),
+                  icon: Icon(Icons.view_list),
+                  label: Text("Inventory"),
                 ),
                 NavigationRailDestination(
                   icon: Icon(Icons.people),
@@ -73,12 +89,16 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   label: "Dashboard",
                 ),
                 BottomNavigationBarItem(
+                  icon: Icon(Icons.list),
+                  label: "Orders",
+                ),
+                BottomNavigationBarItem(
                   icon: Icon(Icons.inventory),
                   label: "Products",
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.list),
-                  label: "Orders",
+                  icon: Icon(Icons.view_list),
+                  label: "Inventory",
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.people),

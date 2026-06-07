@@ -10,6 +10,7 @@ class OrderItem {
     required this.imagePath,
     required this.quantity,
     required this.totalPrice,
+    required this.size,
   });
 
   final String productId;
@@ -18,6 +19,7 @@ class OrderItem {
   final String imagePath;
   final int quantity;
   final int totalPrice;
+  final String size;
 
   factory OrderItem.fromCartItem(CartItem item) {
     return OrderItem(
@@ -27,6 +29,7 @@ class OrderItem {
       imagePath: item.imagePath,
       quantity: item.quantity,
       totalPrice: item.totalPrice,
+      size: item.size,
     );
   }
 
@@ -41,6 +44,7 @@ class OrderItem {
       imagePath: _readString(data['imagePath']),
       quantity: quantity,
       totalPrice: _readInt(data['totalPrice'], fallback: price * quantity),
+      size: _readString(data['size']),
     );
   }
 
@@ -52,6 +56,7 @@ class OrderItem {
       'imagePath': imagePath,
       'quantity': quantity,
       'totalPrice': totalPrice,
+      'size': size,
     };
   }
 }
